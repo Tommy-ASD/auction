@@ -109,113 +109,101 @@ contract auction is Ownable {
     //holy shit this is inoptimal
     //hi if you're reading this in the future this is pretty much my first independent project
     //i can tell it's bad, but i can't tell how to improve it (yet)
-    //are they publically changeable (because of "public" keyword?)
-    //is this why ERC tokens have view balances function?
     bool private _auctionIsActive;
-    //auctionToken is in case you want a token for the auction (ERC)
-    address private _auctionToken;
-    address private _highestBidder;
+    address private _highestBidder = address(0);
     uint256 private _auctionPayout;
-    uint256 private _highestBid;
-    //instead of storing participant in array, store it in bool mapping
-    //if mapping = true; address is entered
-    mapping(address => bool) private _participants;
-    mapping(address => uint256) private _participantHighestEntry;
-    mapping(address => uint256) private _participentTotalValue;
-    mapping(address => uint256[]) private _participantEntries;
+    uint256 private _totalValue;
+    mapping(address => uint256) private _participantTotalValue;
 
-    
-    constructor(address _cauctionToken, uint256 _cauctionPayout) {
-        _auctionToken = _cauctionToken;
+    event startedAuction(uint256 payout);
+    event increasedPayout(address increaser, uint256 increasedBy, uint256 newPayout);
+    event newTopBidder(address topBidder, uint256 addedValue, uint256 topBidderTotalValue);
+    event endedAuction(address winner, uint256 winnerTotalValue);
+    event withdrew(address owner, uint256 amount);
+
+
+    constructor() {
         _auctionIsActive = false;
-        _auctionPayout = _cauctionPayout;
+        //total value sent on auction start is auction payout
+        _auctionPayout = 0;
     }
 
-// VIEW FUNCTIONS
+    // VIEW FUNCTIONS
     function auctionIsActive() public view virtual returns (bool) {
         return _auctionIsActive;
     }
 
-    function auctionToken() public view virtual returns (address) {
-        return _auctionToken;
-    } 
-
     function highestBidder() public view virtual returns (address) {
         return _highestBidder;
-    } 
+    }
 
     function auctionPayout() public view virtual returns (uint256) {
         return _auctionPayout;
-    } 
+    }
 
-    function highestBid() public view virtual returns (uint256) {
-        return _highestBid;
-    } 
+    function totalValue() public view virtual returns (uint256) {
+        return _totalValue;
+    }
 
-    function participants(address _address) public view virtual returns (bool) {
-        return _participants[_address];
-    } 
+    function participantTotalValue(address _address)
+        public
+        view
+        virtual
+        returns (uint256)
+    {
+        return _participantTotalValue[_address];
+    }
 
-    function participantHighestEntry(address _address) public view virtual returns (uint256) {
-        return _participantHighestEntry[_address];
-    } 
+    //END VIEW FUNCTIONS
 
-    function participentTotalValue(address _address) public view virtual returns (uint256) {
-        return _participentTotalValue[_address];
-    } 
+    function startAuction() public payable onlyOwner {
+        require(!_auctionIsActive);
+        _auctionPayout = msg.value;
+        _auctionIsActive = true;
+        emit startedAuction(msg.value);
+    }
 
-    function participantEntries(address _address) public view virtual returns (uint256[] memory) {
-        return _participantEntries[_address];
-    } 
-//END VIEW FUNCTIONS
+    function increasePayout() public payable {
+        require(
+            _auctionIsActive,
+            "Can only increase payout while auction is active"
+        );
+        _auctionPayout += msg.value;
+        emit increasedPayout(msg.sender, msg.value, _auctionPayout);
+    }
 
     function enterAuction() public payable {
         require(_auctionIsActive, "Auction is not currently active");
         //only work if new entry is higher than last highest entry
         require(
-            msg.value > _highestBid,
+            msg.value + _participantTotalValue[msg.sender] >
+                _participantTotalValue[_highestBidder],
             "Your bid is lower than the highest bid"
         );
-        //since this is highest entry, it is also participant's highest entry
-        _participantHighestEntry[msg.sender] = msg.value;
-        //since add latest entry to entries list
-        _participantEntries[msg.sender].push(msg.value);
-        //add new entry to total value entered with (to know how much can be withdrawn)
-        _participentTotalValue[msg.sender] += msg.value;
+        //update total value
+        _totalValue += msg.value;
         //update highest bid and bidder
-        _highestBid = msg.value;
+        _participantTotalValue[msg.sender] += msg.value;
         _highestBidder = msg.sender;
-        //add msg.sender to participants mapping
-        _participants[msg.sender] = true;
-    }
-
-    function withdrawExcess() public payable {
-        //only be able to withdraw if has excess deposits
-        require(_participantEntries[msg.sender].length > 1);
-        //cast address as a payable address
-        address payable withdrawer = payable(msg.sender);
-        //get total excess amount
-        uint256 excessAmount = _participantHighestEntry[msg.sender] -
-            _participantHighestEntry[msg.sender];
-        //transfer funds
-        withdrawer.transfer(excessAmount);
+        emit newTopBidder(msg.sender, msg.value, _participantTotalValue[msg.sender]);
     }
 
     function ownerWithdraw() internal {
         //only be able to withdraw if auction isn't running
         require(!_auctionIsActive, "Cannot withdraw while auction is active");
         //cast owner as payable address
-        address payable _owner = payable(owner());
         //address(this).balance should be obvious
-        _owner.transfer(address(this).balance - _auctionPayout);
+        emit withdrew(msg.sender, address(this).balance);
+        payable(msg.sender).transfer(address(this).balance);
     }
 
-    function startAuction() private {}
-
     function endAuction() public onlyOwner {
+        require(_auctionIsActive, "Cannot end auction unless auction is active");
+        require(_highestBidder != address(0), "Winner cannot be nulladdress");
         _auctionIsActive = false;
         payable(_highestBidder).transfer(_auctionPayout);
+        emit endedAuction(_highestBidder, _participantTotalValue[_highestBidder]);
+        _highestBidder = address(0);
         ownerWithdraw();
-        startAuction();
     }
 }
