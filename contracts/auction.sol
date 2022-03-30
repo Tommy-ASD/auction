@@ -110,14 +110,11 @@ contract auction is Ownable {
     //hi if you're reading this in the future this is pretty much my first independent project
     //i can tell it's bad, but i can't tell how to improve it (yet)
     bool private _auctionIsActive;
-    //auctionToken is in case you want a token for the auction (ERC)
-    address private _auctionToken;
     address private _highestBidder;
     uint256 private _auctionPayout;
     mapping(address => uint256) private _participentTotalValue;
 
-    constructor(address _cauctionToken, uint256 _cauctionPayout) {
-        _auctionToken = _cauctionToken;
+    constructor(uint256 _cauctionPayout) {
         _auctionIsActive = false;
         _auctionPayout = _cauctionPayout;
     }
@@ -125,10 +122,6 @@ contract auction is Ownable {
     // VIEW FUNCTIONS
     function auctionIsActive() public view virtual returns (bool) {
         return _auctionIsActive;
-    }
-
-    function auctionToken() public view virtual returns (address) {
-        return _auctionToken;
     }
 
     function highestBidder() public view virtual returns (address) {
