@@ -109,20 +109,12 @@ contract auction is Ownable {
     //holy shit this is inoptimal
     //hi if you're reading this in the future this is pretty much my first independent project
     //i can tell it's bad, but i can't tell how to improve it (yet)
-    //are they publically changeable (because of "public" keyword?)
-    //is this why ERC tokens have view balances function?
     bool private _auctionIsActive;
     //auctionToken is in case you want a token for the auction (ERC)
     address private _auctionToken;
     address private _highestBidder;
     uint256 private _auctionPayout;
-    uint256 private _highestBid;
-    //instead of storing participant in array, store it in bool mapping
-    //if mapping = true; address is entered
-    mapping(address => bool) private _participants;
-    mapping(address => uint256) private _participantHighestEntry;
     mapping(address => uint256) private _participentTotalValue;
-    mapping(address => uint256[]) private _participantEntries;
 
     
     constructor(address _cauctionToken, uint256 _cauctionPayout) {
@@ -148,57 +140,23 @@ contract auction is Ownable {
         return _auctionPayout;
     } 
 
-    function highestBid() public view virtual returns (uint256) {
-        return _highestBid;
-    } 
-
-    function participants(address _address) public view virtual returns (bool) {
-        return _participants[_address];
-    } 
-
-    function participantHighestEntry(address _address) public view virtual returns (uint256) {
-        return _participantHighestEntry[_address];
-    } 
-
     function participentTotalValue(address _address) public view virtual returns (uint256) {
         return _participentTotalValue[_address];
-    } 
-
-    function participantEntries(address _address) public view virtual returns (uint256[] memory) {
-        return _participantEntries[_address];
-    } 
+    }
 //END VIEW FUNCTIONS
 
     function enterAuction() public payable {
         require(_auctionIsActive, "Auction is not currently active");
         //only work if new entry is higher than last highest entry
         require(
-            msg.value > _highestBid,
+            msg.value+_participentTotalValue[msg.sender] > _participentTotalValue[_highestBidder],
             "Your bid is lower than the highest bid"
         );
-        //since this is highest entry, it is also participant's highest entry
-        _participantHighestEntry[msg.sender] = msg.value;
-        //since add latest entry to entries list
-        _participantEntries[msg.sender].push(msg.value);
         //add new entry to total value entered with (to know how much can be withdrawn)
         _participentTotalValue[msg.sender] += msg.value;
         //update highest bid and bidder
-        _highestBid = msg.value;
         _highestBidder = msg.sender;
         //add msg.sender to participants mapping
-        _participants[msg.sender] = true;
-    }
-
-    function withdrawExcess() public payable {
-        //only be able to withdraw if has excess deposits
-        require(_participantEntries[msg.sender].length > 1);
-        //cast address as a payable address
-        address payable withdrawer = payable(msg.sender);
-        //get total excess amount
-        uint256 excessAmount = _participantHighestEntry[msg.sender] -
-            _participantHighestEntry[msg.sender];
-        //transfer funds
-        withdrawer.transfer(excessAmount);
     }
 
     function ownerWithdraw() internal {
