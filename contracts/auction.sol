@@ -202,13 +202,21 @@ contract auction is Ownable {
     function endAuction() public onlyOwner {
         require(_auctionIsActive, "Cannot end auction unless auction is active");
         require(_highestBidder != address(0), "Winner cannot be nulladdress");
+        //do stuff before reset
         payable(_highestBidder).transfer(_auctionPayout);
         emit endedAuction(_highestBidder, _participantTotalValue[_currentRound][_highestBidder], _currentRound);
         ownerWithdraw();
+
+        //reset
         _highestBidder = address(0);
         _auctionIsActive = false;
         _auctionPayout = 0;
         _totalValue = 0;
         _currentRound += 1;
+    }
+
+    function resetAuction() public onlyOwner {
+        endAuction();
+        startAuction();
     }
 }
