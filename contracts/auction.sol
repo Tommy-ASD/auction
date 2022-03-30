@@ -183,5 +183,6 @@ contract auction is Ownable {
             auctionIsActive,
             "Can only increase payout while auction is active"
         );
+        _auctionPayout += msg.value;
     }
 }
