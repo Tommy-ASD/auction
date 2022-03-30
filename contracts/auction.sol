@@ -112,10 +112,11 @@ contract auction is Ownable {
     bool private _auctionIsActive;
     address private _highestBidder;
     uint256 private _auctionPayout;
-    mapping(address => uint256) private _participentTotalValue;
+    mapping(address => uint256) private _participantTotalValue;
 
     constructor() {
-        _auctionIsActive = false;
+        _auctionIsActive = true;
+        //total value sent on auction start is auction payout
         _auctionPayout = msg.value;
     }
 
@@ -132,13 +133,13 @@ contract auction is Ownable {
         return _auctionPayout;
     }
 
-    function participentTotalValue(address _address)
+    function participantTotalValue(address _address)
         public
         view
         virtual
         returns (uint256)
     {
-        return _participentTotalValue[_address];
+        return _participantTotalValue[_address];
     }
 
     //END VIEW FUNCTIONS
@@ -147,12 +148,12 @@ contract auction is Ownable {
         require(_auctionIsActive, "Auction is not currently active");
         //only work if new entry is higher than last highest entry
         require(
-            msg.value + _participentTotalValue[msg.sender] >
-                _participentTotalValue[_highestBidder],
+            msg.value + _participantTotalValue[msg.sender] >
+                _participantTotalValue[_highestBidder],
             "Your bid is lower than the highest bid"
         );
         //add new entry to total value entered with (to know how much can be withdrawn)
-        _participentTotalValue[msg.sender] += msg.value;
+        _participantTotalValue[msg.sender] += msg.value;
         //update highest bid and bidder
         _highestBidder = msg.sender;
         //add msg.sender to participants mapping
@@ -166,12 +167,21 @@ contract auction is Ownable {
         payable(owner()).transfer(address(this).balance - _auctionPayout);
     }
 
-    function startAuction() private {}
+    function startAuction() private {
+        _auctionIsActive = true;
+    }
 
     function endAuction() public onlyOwner {
         _auctionIsActive = false;
         payable(_highestBidder).transfer(_auctionPayout);
         ownerWithdraw();
         startAuction();
+    }
+
+    function increasePayout() public {
+        require(
+            auctionIsActive,
+            "Can only increase payout while auction is active"
+        );
     }
 }
