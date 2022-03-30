@@ -157,6 +157,19 @@ contract auction is Ownable {
         return _participantTotalValue[_currentRound][_address];
     }
 
+    function previousParticipantTotalValue(uint256 round, address _address)
+        public
+        view
+        virtual
+        returns (uint256)
+    {
+        return _participantTotalValue[round][_address];
+    }
+
+    function currentRound() public view virtual returns (uint256) {
+        return _currentRound;
+    }
+
     //END VIEW FUNCTIONS
 
     function startAuction() public payable onlyOwner {
@@ -215,7 +228,7 @@ contract auction is Ownable {
         _currentRound += 1;
     }
 
-    function resetAuction() public onlyOwner {
+    function resetAuction() public payable onlyOwner {
         endAuction();
         startAuction();
     }
