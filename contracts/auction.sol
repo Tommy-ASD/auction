@@ -117,7 +117,7 @@ contract auction is Ownable {
     constructor() {
         _auctionIsActive = true;
         //total value sent on auction start is auction payout
-        _auctionPayout = msg.value;
+        _auctionPayout = 0;
     }
 
     // VIEW FUNCTIONS
@@ -144,6 +144,12 @@ contract auction is Ownable {
 
     //END VIEW FUNCTIONS
 
+    function startAuction() public payable onlyOwner {
+        require(_auctionIsActive = false);
+        _auctionPayout = msg.value;
+        _auctionIsActive = true;
+    }
+
     function enterAuction() public payable {
         require(_auctionIsActive, "Auction is not currently active");
         //only work if new entry is higher than last highest entry
@@ -167,20 +173,16 @@ contract auction is Ownable {
         payable(owner()).transfer(address(this).balance - _auctionPayout);
     }
 
-    function startAuction() private {
-        _auctionIsActive = true;
-    }
-
     function endAuction() public onlyOwner {
+        require(_auctionIsActive = true);
         _auctionIsActive = false;
         payable(_highestBidder).transfer(_auctionPayout);
         ownerWithdraw();
-        startAuction();
     }
 
-    function increasePayout() public {
+    function increasePayout() public payable {
         require(
-            auctionIsActive,
+            _auctionIsActive,
             "Can only increase payout while auction is active"
         );
         _auctionPayout += msg.value;
