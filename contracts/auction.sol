@@ -111,71 +111,110 @@ contract auction is Ownable {
     //i can tell it's bad, but i can't tell how to improve it (yet)
     //are they publically changeable (because of "public" keyword?)
     //is this why ERC tokens have view balances function?
-    bool public auctionIsActive;
+    bool private _auctionIsActive;
     //auctionToken is in case you want a token for the auction (ERC)
-    address public auctionToken;
-    address public highestBidder;
-    uint256 public auctionPayout;
-    uint256 public highestBid;
+    address private _auctionToken;
+    address private _highestBidder;
+    uint256 private _auctionPayout;
+    uint256 private _highestBid;
     //instead of storing participant in array, store it in bool mapping
     //if mapping = true; address is entered
-    mapping(address => bool) participants;
-    mapping(address => uint256) public participantHighestEntry;
-    mapping(address => uint256) public participentTotalValue;
-    mapping(address => uint256[]) public participantEntries;
+    mapping(address => bool) private _participants;
+    mapping(address => uint256) private _participantHighestEntry;
+    mapping(address => uint256) private _participentTotalValue;
+    mapping(address => uint256[]) private _participantEntries;
 
-    constructor(address _auctionToken, uint256 _auctionPayout) {
-        auctionToken = _auctionToken;
-        auctionIsActive = false;
-        auctionPayout = _auctionPayout;
+    
+    constructor(address _cauctionToken, uint256 _cauctionPayout) {
+        _auctionToken = _cauctionToken;
+        _auctionIsActive = false;
+        _auctionPayout = _cauctionPayout;
     }
 
+// VIEW FUNCTIONS
+    function auctionIsActive() public view virtual returns (bool) {
+        return _auctionIsActive;
+    }
+
+    function auctionToken() public view virtual returns (address) {
+        return _auctionToken;
+    } 
+
+    function highestBidder() public view virtual returns (address) {
+        return _highestBidder;
+    } 
+
+    function auctionPayout() public view virtual returns (uint256) {
+        return _auctionPayout;
+    } 
+
+    function highestBid() public view virtual returns (uint256) {
+        return _highestBid;
+    } 
+
+    function participants(address _address) public view virtual returns (bool) {
+        return _participants[_address];
+    } 
+
+    function participantHighestEntry(address _address) public view virtual returns (uint256) {
+        return _participantHighestEntry[_address];
+    } 
+
+    function participentTotalValue(address _address) public view virtual returns (uint256) {
+        return _participentTotalValue[_address];
+    } 
+
+    function participantEntries(address _address) public view virtual returns (uint256[] memory) {
+        return _participantEntries[_address];
+    } 
+//END VIEW FUNCTIONS
+
     function enterAuction() public payable {
-        require(auctionIsActive, "Auction is not currently active");
+        require(_auctionIsActive, "Auction is not currently active");
         //only work if new entry is higher than last highest entry
         require(
-            msg.value > highestBid,
+            msg.value > _highestBid,
             "Your bid is lower than the highest bid"
         );
         //since this is highest entry, it is also participant's highest entry
-        participantHighestEntry[msg.sender] = msg.value;
+        _participantHighestEntry[msg.sender] = msg.value;
         //since add latest entry to entries list
-        participantEntries[msg.sender].push(msg.value);
+        _participantEntries[msg.sender].push(msg.value);
         //add new entry to total value entered with (to know how much can be withdrawn)
-        participentTotalValue[msg.sender] += msg.value;
+        _participentTotalValue[msg.sender] += msg.value;
         //update highest bid and bidder
-        highestBid = msg.value;
-        highestBidder = msg.sender;
+        _highestBid = msg.value;
+        _highestBidder = msg.sender;
         //add msg.sender to participants mapping
-        participants[msg.sender] = true;
+        _participants[msg.sender] = true;
     }
 
     function withdrawExcess() public payable {
         //only be able to withdraw if has excess deposits
-        require(participantEntries[msg.sender].length > 1);
+        require(_participantEntries[msg.sender].length > 1);
         //cast address as a payable address
         address payable withdrawer = payable(msg.sender);
         //get total excess amount
-        uint256 excessAmount = participantHighestEntry[msg.sender] -
-            participantHighestEntry[msg.sender];
+        uint256 excessAmount = _participantHighestEntry[msg.sender] -
+            _participantHighestEntry[msg.sender];
         //transfer funds
         withdrawer.transfer(excessAmount);
     }
 
     function ownerWithdraw() internal {
         //only be able to withdraw if auction isn't running
-        require(!auctionIsActive, "Cannot withdraw while auction is active");
+        require(!_auctionIsActive, "Cannot withdraw while auction is active");
         //cast owner as payable address
         address payable _owner = payable(owner());
         //address(this).balance should be obvious
-        _owner.transfer(address(this).balance - auctionPayout);
+        _owner.transfer(address(this).balance - _auctionPayout);
     }
 
     function startAuction() private {}
 
     function endAuction() public onlyOwner {
-        auctionIsActive = false;
-        payable(highestBidder).transfer(auctionPayout);
+        _auctionIsActive = false;
+        payable(_highestBidder).transfer(_auctionPayout);
         ownerWithdraw();
         startAuction();
     }
