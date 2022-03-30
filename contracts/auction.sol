@@ -116,40 +116,46 @@ contract auction is Ownable {
     uint256 private _auctionPayout;
     mapping(address => uint256) private _participentTotalValue;
 
-    
     constructor(address _cauctionToken, uint256 _cauctionPayout) {
         _auctionToken = _cauctionToken;
         _auctionIsActive = false;
         _auctionPayout = _cauctionPayout;
     }
 
-// VIEW FUNCTIONS
+    // VIEW FUNCTIONS
     function auctionIsActive() public view virtual returns (bool) {
         return _auctionIsActive;
     }
 
     function auctionToken() public view virtual returns (address) {
         return _auctionToken;
-    } 
+    }
 
     function highestBidder() public view virtual returns (address) {
         return _highestBidder;
-    } 
+    }
 
     function auctionPayout() public view virtual returns (uint256) {
         return _auctionPayout;
-    } 
+    }
 
-    function participentTotalValue(address _address) public view virtual returns (uint256) {
+    function participentTotalValue(address _address)
+        public
+        view
+        virtual
+        returns (uint256)
+    {
         return _participentTotalValue[_address];
     }
-//END VIEW FUNCTIONS
+
+    //END VIEW FUNCTIONS
 
     function enterAuction() public payable {
         require(_auctionIsActive, "Auction is not currently active");
         //only work if new entry is higher than last highest entry
         require(
-            msg.value+_participentTotalValue[msg.sender] > _participentTotalValue[_highestBidder],
+            msg.value + _participentTotalValue[msg.sender] >
+                _participentTotalValue[_highestBidder],
             "Your bid is lower than the highest bid"
         );
         //add new entry to total value entered with (to know how much can be withdrawn)
@@ -163,9 +169,8 @@ contract auction is Ownable {
         //only be able to withdraw if auction isn't running
         require(!_auctionIsActive, "Cannot withdraw while auction is active");
         //cast owner as payable address
-        address payable _owner = payable(owner());
         //address(this).balance should be obvious
-        _owner.transfer(address(this).balance - _auctionPayout);
+        payable(owner()).transfer(address(this).balance - _auctionPayout);
     }
 
     function startAuction() private {}
