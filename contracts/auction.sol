@@ -114,9 +114,9 @@ contract auction is Ownable {
     uint256 private _auctionPayout;
     mapping(address => uint256) private _participentTotalValue;
 
-    constructor(uint256 _cauctionPayout) {
+    constructor() {
         _auctionIsActive = false;
-        _auctionPayout = _cauctionPayout;
+        _auctionPayout = msg.value;
     }
 
     // VIEW FUNCTIONS
