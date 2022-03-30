@@ -110,22 +110,25 @@ contract auction is Ownable {
     //hi if you're reading this in the future this is pretty much my first independent project
     //i can tell it's bad, but i can't tell how to improve it (yet)
     bool private _auctionIsActive;
-    address private _highestBidder = address(0);
+    address private _highestBidder;
     uint256 private _auctionPayout;
     uint256 private _totalValue;
-    mapping(address => uint256) private _participantTotalValue;
+    uint256 private _currentRound;
+    mapping(uint256 => mapping(address => uint256)) private _participantTotalValue;
 
-    event startedAuction(uint256 payout);
-    event increasedPayout(address increaser, uint256 increasedBy, uint256 newPayout);
-    event newTopBidder(address topBidder, uint256 addedValue, uint256 topBidderTotalValue);
-    event endedAuction(address winner, uint256 winnerTotalValue);
-    event withdrew(address owner, uint256 amount);
+    event startedAuction(uint256 payout, uint256 round);
+    event increasedPayout(address increaser, uint256 increasedBy, uint256 newPayout, uint256 round);
+    event newTopBidder(address topBidder, uint256 addedValue, uint256 topBidderTotalValue, uint256 round);
+    event endedAuction(address winner, uint256 winnerTotalValue, uint256 round);
+    event withdrew(address owner, uint256 amount, uint256 round);
 
 
     constructor() {
         _auctionIsActive = false;
         //total value sent on auction start is auction payout
         _auctionPayout = 0;
+        _highestBidder = address(0);
+        _currentRound = 0;
     }
 
     // VIEW FUNCTIONS
@@ -151,7 +154,7 @@ contract auction is Ownable {
         virtual
         returns (uint256)
     {
-        return _participantTotalValue[_address];
+        return _participantTotalValue[_currentRound][_address];
     }
 
     //END VIEW FUNCTIONS
@@ -160,7 +163,7 @@ contract auction is Ownable {
         require(!_auctionIsActive);
         _auctionPayout = msg.value;
         _auctionIsActive = true;
-        emit startedAuction(msg.value);
+        emit startedAuction(msg.value, _currentRound);
     }
 
     function increasePayout() public payable {
@@ -169,41 +172,43 @@ contract auction is Ownable {
             "Can only increase payout while auction is active"
         );
         _auctionPayout += msg.value;
-        emit increasedPayout(msg.sender, msg.value, _auctionPayout);
+        emit increasedPayout(msg.sender, msg.value, _auctionPayout, _currentRound);
     }
 
     function enterAuction() public payable {
         require(_auctionIsActive, "Auction is not currently active");
         //only work if new entry is higher than last highest entry
         require(
-            msg.value + _participantTotalValue[msg.sender] >
-                _participantTotalValue[_highestBidder],
+            msg.value + _participantTotalValue[_currentRound][msg.sender] >
+                _participantTotalValue[_currentRound][_highestBidder],
             "Your bid is lower than the highest bid"
         );
         //update total value
         _totalValue += msg.value;
         //update highest bid and bidder
-        _participantTotalValue[msg.sender] += msg.value;
+        _participantTotalValue[_currentRound][msg.sender] += msg.value;
         _highestBidder = msg.sender;
-        emit newTopBidder(msg.sender, msg.value, _participantTotalValue[msg.sender]);
+        emit newTopBidder(msg.sender, msg.value, _participantTotalValue[_currentRound][msg.sender], _currentRound);
     }
 
     function ownerWithdraw() internal {
-        //only be able to withdraw if auction isn't running
-        require(!_auctionIsActive, "Cannot withdraw while auction is active");
         //cast owner as payable address
         //address(this).balance should be obvious
-        emit withdrew(msg.sender, address(this).balance);
+        //(it's the balance of the contract)
+        emit withdrew(msg.sender, address(this).balance, _currentRound);
         payable(msg.sender).transfer(address(this).balance);
     }
 
     function endAuction() public onlyOwner {
         require(_auctionIsActive, "Cannot end auction unless auction is active");
         require(_highestBidder != address(0), "Winner cannot be nulladdress");
-        _auctionIsActive = false;
         payable(_highestBidder).transfer(_auctionPayout);
-        emit endedAuction(_highestBidder, _participantTotalValue[_highestBidder]);
-        _highestBidder = address(0);
+        emit endedAuction(_highestBidder, _participantTotalValue[_currentRound][_highestBidder], _currentRound);
         ownerWithdraw();
+        _highestBidder = address(0);
+        _auctionIsActive = false;
+        _auctionPayout = 0;
+        _totalValue = 0;
+        _currentRound += 1;
     }
 }
