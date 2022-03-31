@@ -8,4 +8,5 @@
     When owner ends auction, highest bidder gets the payout\
     Owner gets the total deposited
 3. This was based on a vSauce episode I saw once
+    Found the video: https://www.youtube.com/watch?v=1IAsV31ru4Y
 4. I made it out of boredom
