@@ -6,6 +6,6 @@
     Anyone can bid, as long as their bid is higher than the last\
     No one can withdraw their bid\
     When owner ends auction, highest bidder gets the payout\
-    Owner gets the total deposited\
+    Owner gets the total deposited
 3. This was based on a vSauce episode I saw once
 4. I made it out of boredom
