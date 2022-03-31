@@ -103,29 +103,42 @@ abstract contract Ownable is Context {
     }
 }
 
+/// @title Auction
+/// @author TommyASD
+/// @notice This is an auction project where people can bid on something, but they can't withdraw their bid (based off of a vSauce video I saw once)
+/// @dev Not audited, use with caution. Will add support for tokens at a later time.
+
 pragma solidity ^0.8.0;
 
 contract auction is Ownable {
-    //holy shit this is inoptimal
-    //hi if you're reading this in the future this is pretty much my first independent project
-    //i can tell it's bad, but i can't tell how to improve it (yet)
     bool private _auctionIsActive;
     address private _highestBidder;
     uint256 private _auctionPayout;
     uint256 private _totalValue;
+    /// @dev Added _currentRound variable because functions are immutable
+    /// @dev Storing current round makes it easier to reset how much money participants have added
     uint256 private _currentRound;
-    mapping(uint256 => mapping(address => uint256)) private _participantTotalValue;
+    mapping(uint256 => mapping(address => uint256))
+        private _participantTotalValue;
 
     event startedAuction(uint256 payout, uint256 round);
-    event increasedPayout(address increaser, uint256 increasedBy, uint256 newPayout, uint256 round);
-    event newTopBidder(address topBidder, uint256 addedValue, uint256 topBidderTotalValue, uint256 round);
+    event increasedPayout(
+        address increaser,
+        uint256 increasedBy,
+        uint256 newPayout,
+        uint256 round
+    );
+    event newTopBidder(
+        address topBidder,
+        uint256 addedValue,
+        uint256 topBidderTotalValue,
+        uint256 round
+    );
     event endedAuction(address winner, uint256 winnerTotalValue, uint256 round);
     event withdrew(address owner, uint256 amount, uint256 round);
 
-
     constructor() {
         _auctionIsActive = false;
-        //total value sent on auction start is auction payout
         _auctionPayout = 0;
         _highestBidder = address(0);
         _currentRound = 0;
@@ -172,6 +185,8 @@ contract auction is Ownable {
 
     //END VIEW FUNCTIONS
 
+    /// @notice Only owner can start the auction, and can only start if the auction is inactive
+    /// @notice The amount of money the owner sends becomes the auction payout
     function startAuction() public payable onlyOwner {
         require(!_auctionIsActive);
         _auctionPayout = msg.value;
@@ -179,18 +194,27 @@ contract auction is Ownable {
         emit startedAuction(msg.value, _currentRound);
     }
 
+    /// @notice Anyone can do the function to increase the payout.
+    /// @notice The amount of money sent with the transaction gets added on to the total payout
+    /// @notice This can only be done if auction is active
     function increasePayout() public payable {
         require(
             _auctionIsActive,
             "Can only increase payout while auction is active"
         );
         _auctionPayout += msg.value;
-        emit increasedPayout(msg.sender, msg.value, _auctionPayout, _currentRound);
+        emit increasedPayout(
+            msg.sender,
+            msg.value,
+            _auctionPayout,
+            _currentRound
+        );
     }
 
+    /// @notice Can only enter if your previous amount deposited + the amount sent is greater than last highest entry
+    /// @notice Can also only enter if auction is active
     function enterAuction() public payable {
         require(_auctionIsActive, "Auction is not currently active");
-        //only work if new entry is higher than last highest entry
         require(
             msg.value + _participantTotalValue[_currentRound][msg.sender] >
                 _participantTotalValue[_currentRound][_highestBidder],
@@ -201,23 +225,41 @@ contract auction is Ownable {
         //update highest bid and bidder
         _participantTotalValue[_currentRound][msg.sender] += msg.value;
         _highestBidder = msg.sender;
-        emit newTopBidder(msg.sender, msg.value, _participantTotalValue[_currentRound][msg.sender], _currentRound);
+        emit newTopBidder(
+            msg.sender,
+            msg.value,
+            _participantTotalValue[_currentRound][msg.sender],
+            _currentRound
+        );
     }
 
+    /// @notice This function transfers the entire balance of the contract to the owner
+    /// @notice This includes a possible auction payout
+    /// @notice The function is only ever called after the payout is payed to highest bidder
     function ownerWithdraw() internal {
-        //cast owner as payable address
-        //address(this).balance should be obvious
-        //(it's the balance of the contract)
         emit withdrew(msg.sender, address(this).balance, _currentRound);
         payable(msg.sender).transfer(address(this).balance);
     }
 
+    /// @notice Can't end if anyone has entered auction, can't end if auction isn't active
+    /// @notice This is the only time the previous function is ever done
+    /// @notice Which makes it impossible for the owner to withdraw payout
+
+    /// @dev Variables are reset at the end of the function
+    /// @dev This is to make the contract ready for the next round
     function endAuction() public onlyOwner {
-        require(_auctionIsActive, "Cannot end auction unless auction is active");
+        require(
+            _auctionIsActive,
+            "Cannot end auction unless auction is active"
+        );
         require(_highestBidder != address(0), "Winner cannot be nulladdress");
         //do stuff before reset
         payable(_highestBidder).transfer(_auctionPayout);
-        emit endedAuction(_highestBidder, _participantTotalValue[_currentRound][_highestBidder], _currentRound);
+        emit endedAuction(
+            _highestBidder,
+            _participantTotalValue[_currentRound][_highestBidder],
+            _currentRound
+        );
         ownerWithdraw();
 
         //reset
@@ -228,6 +270,8 @@ contract auction is Ownable {
         _currentRound += 1;
     }
 
+    /// @dev This was made to (possibly) save gas
+    /// @dev Still pretty new to this, so I don't know if it helps
     function resetAuction() public payable onlyOwner {
         endAuction();
         startAuction();
