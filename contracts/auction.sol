@@ -125,8 +125,10 @@ contract auction is Ownable {
     mapping(uint256 => address) private _highestBidder;
     mapping(uint256 => uint256) private _auctionPayout;
     mapping(uint256 => uint256) private _totalValue;
+    /// @dev maps current round to address, address to amount
     mapping(uint256 => mapping(address => uint256))
         private _participantTotalValue;
+    /// @dev maps current round to allowances
     mapping(uint256 => mapping(address => mapping(address => uint256)))
         private _allowances;
 
