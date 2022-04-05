@@ -360,15 +360,15 @@ pragma solidity ^0.8.0;
 
 contract auction is Ownable {
     bool private _auctionIsActive;
-    address private _highestBidder;
-    uint256 private _auctionPayout;
-    uint256 private _totalValue;
     uint8 private _decimals;
     string private _name;
     string private _symbol;
     /// @dev Added _currentRound variable because functions are immutable
     /// @dev Storing current round makes it easier to reset how much money participants have added
     uint256 private _currentRound;
+    mapping(uint256 => address) private _highestBidder;
+    mapping(uint256 => uint256) private _auctionPayout;
+    mapping(uint256 => uint256) private _totalValue;
     mapping(uint256 => mapping(address => uint256))
         private _participantTotalValue;
     mapping(uint256 => mapping(address => mapping(address => uint256)))
@@ -396,8 +396,6 @@ contract auction is Ownable {
         uint8 decimals_
     ) {
         _auctionIsActive = false;
-        _auctionPayout = 0;
-        _highestBidder = address(0);
         _currentRound = 0;
         _name = name_;
         _symbol = symbol_;
@@ -410,15 +408,15 @@ contract auction is Ownable {
     }
 
     function highestBidder() public view virtual returns (address) {
-        return _highestBidder;
+        return _highestBidder[_currentRound];
     }
 
     function auctionPayout() public view virtual returns (uint256) {
-        return _auctionPayout;
+        return _auctionPayout[_currentRound];
     }
 
     function totalValue() public view virtual returns (uint256) {
-        return _totalValue;
+        return _totalValue[_currentRound];
     }
 
     function participantTotalValue(address _address)
@@ -458,7 +456,7 @@ contract auction is Ownable {
     }
 
     function totalSupply() external view returns (uint256) {
-        return _totalValue;
+        return _totalValue[_currentRound];
     }
 
     function balanceOf(address account) external view returns (uint256) {
@@ -479,7 +477,7 @@ contract auction is Ownable {
     /// @notice The amount of money the owner sends becomes the auction payout
     function startAuction() public payable onlyOwner {
         require(!_auctionIsActive);
-        _auctionPayout = msg.value;
+        _auctionPayout[_currentRound] = msg.value;
         _auctionIsActive = true;
         emit startedAuction(msg.value, _currentRound);
     }
@@ -492,11 +490,11 @@ contract auction is Ownable {
             _auctionIsActive,
             "Can only increase payout while auction is active"
         );
-        _auctionPayout += msg.value;
+        _auctionPayout[_currentRound] += msg.value;
         emit increasedPayout(
             msg.sender,
             msg.value,
-            _auctionPayout,
+            _auctionPayout[_currentRound],
             _currentRound
         );
     }
@@ -507,14 +505,16 @@ contract auction is Ownable {
         require(_auctionIsActive, "Auction is not currently active");
         require(
             msg.value + _participantTotalValue[_currentRound][msg.sender] >
-                _participantTotalValue[_currentRound][_highestBidder],
+                _participantTotalValue[_currentRound][
+                    _highestBidder[_currentRound]
+                ],
             "Your bid is lower than the highest bid"
         );
         //update total value
-        _totalValue += msg.value;
+        _totalValue[_currentRound] += msg.value;
         //update highest bid and bidder
         _participantTotalValue[_currentRound][msg.sender] += msg.value;
-        _highestBidder = msg.sender;
+        _highestBidder[_currentRound] = msg.sender;
         emit newTopBidder(
             msg.sender,
             msg.value,
@@ -542,21 +542,25 @@ contract auction is Ownable {
             _auctionIsActive,
             "Cannot end auction unless auction is active"
         );
-        require(_highestBidder != address(0), "Winner cannot be nulladdress");
+        require(
+            _highestBidder[_currentRound] != address(0),
+            "Winner cannot be nulladdress"
+        );
         //do stuff before reset
-        payable(_highestBidder).transfer(_auctionPayout);
+        payable(_highestBidder[_currentRound]).transfer(
+            _auctionPayout[_currentRound]
+        );
         emit endedAuction(
-            _highestBidder,
-            _participantTotalValue[_currentRound][_highestBidder],
+            _highestBidder[_currentRound],
+            _participantTotalValue[_currentRound][
+                _highestBidder[_currentRound]
+            ],
             _currentRound
         );
         ownerWithdraw();
 
         //reset
-        _highestBidder = address(0);
         _auctionIsActive = false;
-        _auctionPayout = 0;
-        _totalValue = 0;
         _currentRound += 1;
     }
 
