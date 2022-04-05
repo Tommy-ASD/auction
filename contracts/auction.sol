@@ -117,6 +117,11 @@ contract auction is Ownable {
     /// @dev Added _currentRound variable because functions are immutable
     /// @dev Storing current round makes it easier to reset how much money participants have added
     uint256 private _currentRound;
+
+    /// @notice could be gas expensive, unsure
+
+    /// @dev maps variables to current round
+    /// @dev this is to make it easier to dig through archives/older rounds for end users
     mapping(uint256 => address) private _highestBidder;
     mapping(uint256 => uint256) private _auctionPayout;
     mapping(uint256 => uint256) private _totalValue;
