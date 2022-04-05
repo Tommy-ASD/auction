@@ -363,11 +363,16 @@ contract auction is Ownable {
     address private _highestBidder;
     uint256 private _auctionPayout;
     uint256 private _totalValue;
+    uint8 private _decimals;
+    string private _name;
+    string private _symbol;
     /// @dev Added _currentRound variable because functions are immutable
     /// @dev Storing current round makes it easier to reset how much money participants have added
     uint256 private _currentRound;
     mapping(uint256 => mapping(address => uint256))
         private _participantTotalValue;
+    mapping(uint256 => mapping(address => mapping(address => uint256)))
+        private _allowances;
 
     event startedAuction(uint256 payout, uint256 round);
     event increasedPayout(
@@ -385,11 +390,18 @@ contract auction is Ownable {
     event endedAuction(address winner, uint256 winnerTotalValue, uint256 round);
     event withdrew(address owner, uint256 amount, uint256 round);
 
-    constructor() {
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_
+    ) {
         _auctionIsActive = false;
         _auctionPayout = 0;
         _highestBidder = address(0);
         _currentRound = 0;
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = decimals_;
     }
 
     // VIEW FUNCTIONS
@@ -429,6 +441,36 @@ contract auction is Ownable {
 
     function currentRound() public view virtual returns (uint256) {
         return _currentRound;
+    }
+
+    /// @dev ERC20 view functions
+
+    function name() public view virtual returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view virtual returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public view virtual returns (uint8) {
+        return _decimals;
+    }
+
+    function totalSupply() external view returns (uint256) {
+        return _totalValue;
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return _participantTotalValue[_currentRound][account];
+    }
+
+    function allowance(address owner, address spender)
+        external
+        view
+        returns (uint256)
+    {
+        return _allowances[_currentRound][owner][spender];
     }
 
     //END VIEW FUNCTIONS
